@@ -1,5 +1,10 @@
+
+#------
+# aws-ssm-ssh-util configuration
+#------
+
 Match Host  i-*
-ProxyCommand ~/aws-ssm-ssh-util %h %r
+ProxyCommand ~/.ssh/aws-ssm-ssh-util %h %r
 IdentityFile ~/.ssh/ssm-ssh-key
 StrictHostKeyChecking no
 PasswordAuthentication no
