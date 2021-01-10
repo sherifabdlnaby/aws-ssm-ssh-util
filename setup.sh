@@ -17,7 +17,7 @@ To Use:
       - 📝 IAM instance profile allowing SSM access must be attached to EC2 instance
       - 📝 SSM agent must be installed on EC2 instance
   Requirements For Client:
-      - 📝 AWS cli requires you install `session-manager-plugin` locally
+      - 📝 AWS cli requires you install \`session-manager-plugin\` locally
       - 📝 AWS_PROFILE enviroment variable set.
 
 Usage:
