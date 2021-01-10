@@ -1,0 +1,9 @@
+Match Host  i-*
+ProxyCommand ~/aws-ssm-ssh-util %h %r
+IdentityFile ~/.ssh/ssm-ssh-key
+StrictHostKeyChecking no
+PasswordAuthentication no
+ChallengeResponseAuthentication no
+TCPKeepAlive yes
+ServerAliveInterval 30
+ConnectTimeout 30
