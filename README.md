@@ -12,19 +12,24 @@ curl -o- https://raw.githubusercontent.com/sherifabdlnaby/aws-ssm-ssh-util/maste
 
 # Usage
 To Use:
+
 Requirements For Instances:
-    - Instances must have access to ssm.{region}.amazonaws.com
-    - IAM instance profile allowing SSM access must be attached to EC2 instance
-    - SSM agent must be installed on EC2 instance
+
+- Instances must have access to ssm.{region}.amazonaws.com
+- IAM instance profile allowing SSM access must be attached to EC2 instance
+- SSM agent must be installed on EC2 instance
+
 Requirements For Client:
-    - AWS cli requires you install `session-manager-plugin` locally
-    - AWS_PROFILE enviroment variable set.
+
+- AWS cli requires you install `session-manager-plugin` locally
+- AWS_PROFILE enviroment variable set.
 
 Usage:
-    1. Using InstanceID     ==>     ssh user@i-123xxx42x31x2xx
-    2. Using Name(fuzzy)    ==>     ssh user@i-<search query> (will pick first result)
-    3. Using DNS            ==>     ssh user@i-<Private/Public DNS Record>
-    4. Using IP             ==>     ssh user@i-<IP>
+
+1. Using InstanceID     ==>     ssh user@i-123xxx42x31x2xx
+2. Using Name(fuzzy)    ==>     ssh user@i-<search query> (will pick first result)
+3. Using DNS            ==>     ssh user@i-<Private/Public DNS Record>
+4. Using IP             ==>     ssh user@i-<IP>
 
 ## Info and requirements
 Recently I was required to administer AWS instances via Session Manager. After downloading the required plugin and initiating a SSM session locally using `aws ssm start-session` I found myself in a situation where I couldn't easily copy a file from my machine to the server (e.g. SCP, sftp, rsync etc). After some reading of AWS documentation I found it's possible to connect via SSH over SSM, solving this issue. You also get all the other benefits and functionality of SSH e.g. encryption, proxy jumping, port forwarding, socks etc.
