@@ -7,6 +7,33 @@ set -o nounset -o pipefail -o errexit
 
 instance=${1}
 
+# If not instance ID, try if it is a name, or IP, or ID
+if [[ ! $instance =~ ^i-([0-9a-f]{8,})$ ]]
+then
+  instance=$(echo $instance | awk '{split($0,a,"-"); print a[2]}')
+  # Try by top instance name
+  if instance_id=$(aws ec2 describe-instances --query 'Reservations[].Instances[].InstanceId' --filters Name=instance-state-name,Values=running Name=tag:Name,Values="*$instance*" --output json | jq -r '.[0]');
+   then
+   instance=$instance_id
+  # Try by private DNS Name
+  elif instance_id=$(aws ec2 describe-instances --filters Name=private-dns-name,Values=${instance} --query 'Reservations[].Instances[].InstanceId' --output json | jq -r '.[0]');
+   then
+   instance=$instance_id
+  # Try by Private IP
+  elif instance_id=$(aws ec2 describe-instances --filters Name=network-interface.addresses.private-ip-address,Values=${instance} --query 'Reservations[].Instances[].InstanceId' --output json | jq -r '.[0]');
+   then
+   instance=$instance_id
+    # Try by Public IP
+  elif instance_id=$(aws ec2 describe-instances --filters Name=network-interface.addresses.public-ip-address,Values=${instance} --query 'Reservations[].Instances[].InstanceId' --output json | jq -r '.[0]');
+   then
+   instance=$instance_id
+  fi
+fi
+
+# Exit If we couldn't find ID
+if [ "$instance" = "null" ]; then
+  echo "❌ Invalid Instance Identifier, couldn't match it to InstanceID, Name, Public/Private DNS Or IP." >&2; echo "(Do you have permission to access these instances?)" >&2 && exit 1;
+fi
 
 # ----------------------------------------  ADD PUBLIC KEY TO REMOTE INSTANCE ----------------------------------------
 
