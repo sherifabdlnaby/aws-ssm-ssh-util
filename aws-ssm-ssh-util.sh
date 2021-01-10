@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-set -o nounset -o pipefail -o errexit
+set -o pipefail -o errexit
 
 # This is a modifed script of a open-source helper script: https://github.com/elpy1/ssh-over-ssm
 
 # ----------------------------------------  GET INSTANCE ID IF GIVEN INPUT IS NOT ID ----------------------------------------
 
 instance=${1}
+
+
 
 # If not instance ID, try if it is a name, or IP, or ID
 if [[ ! $instance =~ ^i-([0-9a-f]{8,})$ ]]
