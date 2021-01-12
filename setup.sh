@@ -18,7 +18,7 @@ To Use:
       - 📝 SSM agent must be installed on EC2 instance
   Requirements For Client:
       - 📝 AWS cli requires you install \`session-manager-plugin\` locally
-      - 📝 AWS_PROFILE enviroment variable set.
+      - 📝 AWS_PROFILE environment variable set (or logged in to default profile).
 
 Usage:
   1. Using InstanceID     ==>     ssh user@i-123xxx42x31x2xx
