@@ -1,41 +1,69 @@
 #!/usr/bin/env bash
-set -o pipefail -o errexit
+set -o nounset -o pipefail -o errexit
 
 # This is a modifed script of a open-source helper script: https://github.com/elpy1/ssh-over-ssm
 
 # ----------------------------------------  GET INSTANCE ID IF GIVEN INPUT IS NOT ID ----------------------------------------
 
-instance=${1}
+export instance=${1}
+export instance_name=$instance
 user=$(whoami)
 
 
 # If not instance ID, try if it is a name, or IP, or ID
 if [[ ! $instance =~ ^i-([0-9a-f]{8,})$ ]]
 then
-  instance=$(echo $instance | awk '{split($0,a,"-"); print a[2]}')
+  instance=$(echo "$instance" | awk '{split($0,a,"-"); print a[2]}')
+
+  printf " 🔍 Looking up ${instance}... " >&2;
+
   # Try by top instance name
-  if instance_id=$(aws ec2 describe-instances --query 'Reservations[].Instances[].InstanceId' --filters Name=instance-state-name,Values=running Name=tag:Name,Values="*$instance*" --output json | jq -r '.[0]');
-   then
-   instance=$instance_id
+  if instance_query=$(aws ec2 describe-instances --query 'Reservations[].Instances[].{Instance:InstanceId, Name:Tags[?Key==`Name`]|[0].Value}' --filters Name=instance-state-name,Values=running Name=tag:Name,Values="*$instance*" --output json | jq -e '.[0]');
+    then
+     instance=$(echo "$instance_query" | jq -r '.Instance')
+     instance_name=$(echo "$instance_query" | jq -r '.Name')
   # Try by private DNS Name
-  elif instance_id=$(aws ec2 describe-instances --filters Name=private-dns-name,Values=${instance} --query 'Reservations[].Instances[].InstanceId' --output json | jq -r '.[0]');
-   then
-   instance=$instance_id
-  # Try by Private IP
-  elif instance_id=$(aws ec2 describe-instances --filters Name=network-interface.addresses.private-ip-address,Values=${instance} --query 'Reservations[].Instances[].InstanceId' --output json | jq -r '.[0]');
-   then
-   instance=$instance_id
+  elif instance_query=$(aws ec2 describe-instances --filters Name=private-dns-name,Values=${instance} --query 'Reservations[].Instances[].{Instance:InstanceId, Name:Tags[?Key==`Name`]|[0].Value}' --output json | jq -e '.[0]');
+    then
+     instance=$(echo "$instance_query" | jq -r '.Instance')
+     instance_name=$(echo "$instance_query" | jq -r '.Name')
+  # Try if IP
+  elif [[ "$instance" =~ ^(([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))\.){3}([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))$ ]];
+    then
+    # Try by Private IP
+    if instance_query=$(aws ec2 describe-instances --filters Name=network-interface.addresses.private-ip-address,Values=$instance --query 'Reservations[].Instances[].{Instance:InstanceId, Name:Tags[?Key==`Name`]|[0].Value}' --output json | jq -e '.[0]');
+     then
+       instance=$(echo "$instance_query" | jq -r '.Instance')
+       instance_name=$(echo "$instance_query" | jq -r '.Name')
     # Try by Public IP
-  elif instance_id=$(aws ec2 describe-instances --filters Name=network-interface.addresses.public-ip-address,Values=${instance} --query 'Reservations[].Instances[].InstanceId' --output json | jq -r '.[0]');
+    elif instance_query=$(aws ec2 describe-instances --filters Name=ip-address,Values=$instance --query 'Reservations[].Instances[].{Instance:InstanceId, Name:Tags[?Key==`Name`]|[0].Value}' --output json | jq -e '.[0]' );
+     then
+       instance=$(echo "$instance_query" | jq -r '.Instance')
+       instance_name=$(echo "$instance_query" | jq -r '.Name')
+    else
+      echo "❌ Couldn't Match Public/Private IP to an instance." >&2; echo "   (Do you have permission to view this instance?)" >&2 && exit 1;
+    fi
+  else
+     echo "❌ Invalid Instance Identifier, couldn't match it to a Name, Public/Private DNS, Or an IP." >&2; echo "   (Do you have permission to view this instance?)" >&2 && exit 1;
+  fi
+  echo "✔️  Found '$instance' | '$instance_name'" >&2;
+else
+  # Validate ID and get Instance Name
+  if instance_query=$(aws ec2 describe-instances --query 'Reservations[].Instances[].{Instance:InstanceId, Name:Tags[?Key==`Name`]|[0].Value}' --filters "Name=instance-id,Values=$instance");
    then
-   instance=$instance_id
+     instance=$(echo "$instance_query" | jq -r '.[0].Instance')
+     instance_name=$(echo "$instance_query" | jq -r '.[0].Name')
+   else
+    echo "❌ Instance ID is either wrong, or you don't have permissions to access it." >&2;
+    exit 1
   fi
 fi
 
-# Exit If we couldn't find ID
-if [ "$instance" = "null" ]; then
-  echo "❌ Invalid Instance Identifier, couldn't match it to InstanceID, Name, Public/Private DNS Or IP." >&2; echo "(Do you have permission to access these instances?)" >&2 && exit 1;
+# Just in-case name wasn't set (so won't confuse the user with the 'null')
+if [ "$instance_name" = "null" ]; then
+  instance_name=$instance
 fi
+
 
 # ----------------------------------------  ADD PUBLIC KEY TO REMOTE INSTANCE ----------------------------------------
 
@@ -65,6 +93,7 @@ ssm_cmd=$(cat <<EOF
 EOF
 )
 
+echo " 🔐 Adding ephemeral public key to remote instance..." >&2;
 
 # Send The Command to the Remote Instance to run instantly (and asyncrhonusly)
 # - The Command puts the key and deletes it after 15 seconds, we only need it to be present only when we run the below ssm command.
@@ -72,15 +101,17 @@ aws ssm send-command \
   --instance-ids "$instance" \
   --document-name "AWS-RunShellScript" \
   --parameters commands="${ssm_cmd}" \
-  --comment "Adding Temp Access Key for USER:$USER" || (echo "❌ Invalid Instance ID: $instance. Make sure you have permission to instance." >&2 && exit 1);
+  --comment "Adding Temp Access Key for USER:${user}" || (echo -e "❌ Invalid Instance ID: $instance. Make sure you have permission to instance." >&2 && exit 1);
 
-echo " ✅ Added ephemeral public key to remote instance '$instance' 🔐" >&2;
+
+printf " ✅ Added." >&2;
 
 
 # Sleep for some time to avoid if the above script didn't run instantly (Although the SSM Send-Command returns when the script HAS Started)
 sleep 1
 
-echo " 🏃 Connecting to instance '$instance'... " >&2;
+
+echo " 🏃 Connecting to instance '$instance_name'... " >&2;
 
 # Start SSH Session over SSM
 # - Session Manager is going to proxy our SSH Client traffic(that is running this script) to the SSH on the host.
