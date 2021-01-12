@@ -15,7 +15,7 @@ if [[ ! $instance =~ ^i-([0-9a-f]{8,})$ ]]
 then
   instance=$(echo "$instance" | awk '{split($0,a,"-"); print a[2]}')
 
-  printf " 🔍 Looking up ${instance}... " >&2;
+  printf " 🔍 Looking up `${instance}`... " >&2;
 
   # Try by top instance name
   if instance_query=$(aws ec2 describe-instances --query 'Reservations[].Instances[].{Instance:InstanceId, Name:Tags[?Key==`Name`]|[0].Value}' --filters Name=instance-state-name,Values=running Name=tag:Name,Values="*$instance*" --output json | jq -e '.[0]');

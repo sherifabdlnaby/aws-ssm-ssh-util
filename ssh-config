@@ -11,4 +11,4 @@ PasswordAuthentication no
 ChallengeResponseAuthentication no
 TCPKeepAlive yes
 ServerAliveInterval 30
-ConnectTimeout 30
+ConnectTimeout 60
