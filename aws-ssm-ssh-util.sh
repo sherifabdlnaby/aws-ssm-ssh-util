@@ -6,7 +6,7 @@ set -o pipefail -o errexit
 # ----------------------------------------  GET INSTANCE ID IF GIVEN INPUT IS NOT ID ----------------------------------------
 
 instance=${1}
-
+user=$(whoami)
 
 
 # If not instance ID, try if it is a name, or IP, or ID
@@ -41,8 +41,9 @@ fi
 
 # Check If SSM key is on client, create it if it doesn't exist.
 if [ ! -f ~/.ssh/ssm-ssh-key.pub ] || [ ! -f ~/.ssh/ssm-ssh-key ]
-then    
-  ssh-keygen -t ed25519 -N '' -f ~/.ssh/ssm-ssh-key -C ssm-ssh-session-$USER <<< yes
+then
+  ssh-keygen -t ed25519 -N '' -f ~/.ssh/ssm-ssh-key -C ssm-ssh-session-"${user}" <<< yes
+  echo "🔐 Created Keypair to use with SSH using SSM." >&2;
 fi
 
 # Public Key Value that we're going to set at the remote instance
@@ -71,10 +72,15 @@ aws ssm send-command \
   --instance-ids "$instance" \
   --document-name "AWS-RunShellScript" \
   --parameters commands="${ssm_cmd}" \
-  --comment "Adding Temp Access Key for USER:$USER" || (echo "Invalid Instance ID: $instance. Make sure you have permission to instance." >&2 && exit 1);
+  --comment "Adding Temp Access Key for USER:$USER" || (echo "❌ Invalid Instance ID: $instance. Make sure you have permission to instance." >&2 && exit 1);
+
+echo " ✅ Added ephemeral public key to remote instance '$instance' 🔐" >&2;
+
 
 # Sleep for some time to avoid if the above script didn't run instantly (Although the SSM Send-Command returns when the script HAS Started)
 sleep 1
+
+echo " 🏃 Connecting to instance '$instance'... " >&2;
 
 # Start SSH Session over SSM
 # - Session Manager is going to proxy our SSH Client traffic(that is running this script) to the SSH on the host.
