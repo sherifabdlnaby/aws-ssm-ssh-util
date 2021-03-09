@@ -49,7 +49,7 @@ then
   echo "✔️  Found '$instance' | '$instance_name'" >&2;
 else
   # Validate ID and get Instance Name
-  if instance_query=$(aws ec2 describe-instances --query 'Reservations[].Instances[].{Instance:InstanceId, Name:Tags[?Key==`Name`]|[0].Value}' --filters "Name=instance-id,Values=$instance");
+  if instance_query=$(aws ec2 describe-instances --query 'Reservations[].Instances[].{Instance:InstanceId, Name:Tags[?Key==`Name`]|[0].Value}' --filters "Name=instance-id,Values=$instance" --output json) ;
    then
      instance=$(echo "$instance_query" | jq -r '.[0].Instance')
      instance_name=$(echo "$instance_query" | jq -r '.[0].Name')
